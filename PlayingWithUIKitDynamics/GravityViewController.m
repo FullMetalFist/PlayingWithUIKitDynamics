@@ -11,72 +11,44 @@
 
 @interface GravityViewController ()
 
-@property (nonatomic, strong) UIView *squareView;
-@property (nonatomic, strong) UIView *squareViewAnchorView;
-@property (nonatomic, strong) UIView *anchorView;
 @property (nonatomic, strong) UIDynamicAnimator *animator;
-@property (nonatomic, strong) UIAttachmentBehavior *attachmentBehavior;
 
 @end
 
 @implementation GravityViewController
 
-- (void) createSmallSquareView
+- (UIView *) newViewWithCenter:(CGPoint)center backgroundColor:(UIColor *)backgroundColor
 {
-    self.squareView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, 80.0f, 80.0f)];
-    
-    self.squareView.backgroundColor = [UIColor greenColor];
-    self.squareView.center = self.view.center;
-    
-    self.squareViewAnchorView = [[UIView alloc] initWithFrame:CGRectMake(60.0f, 0.0f, 20.0f, 20.0f)];
-    self.squareViewAnchorView.backgroundColor = [UIColor blackColor];
-    
-    [self.squareView addSubview:self.squareViewAnchorView];
-    [self.view addSubview:self.squareView];
+    UIView *aView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, 50.0f, 50.0f)];
+    aView.backgroundColor = backgroundColor;
+    aView.center = center;
+    return aView;
 }
 
-- (void) createAnchorView
-{
-    self.anchorView = [[UIView alloc] initWithFrame:CGRectMake(120.0f, 120.0f, 20.0f, 20.0f)];
-    self.anchorView.backgroundColor = [UIColor redColor];
-    
-    [self.view addSubview:self.anchorView];
-}
-
-- (void) createGestureRecognizer
-{
-    UIPanGestureRecognizer *panGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)];
-    [self.view addGestureRecognizer:panGestureRecognizer];
-}
-
-- (void) createAnimatorAndBehaviors
-{
-    self.animator = [[UIDynamicAnimator alloc] initWithReferenceView:self.view];
-    // create collision detection
-    UICollisionBehavior *collision = [[UICollisionBehavior alloc] initWithItems:@[self.squareView]];
-    collision.translatesReferenceBoundsIntoBoundary = YES;
-    
-#warning init method in book was not available- initWithItem:point:attachedToAnchor: method missing
-    self.attachmentBehavior = [[UIAttachmentBehavior alloc] initWithItem:self.squareView attachedToAnchor:self.anchorView.center];
-    [self.animator addBehavior:collision];
-    [self.animator addBehavior:self.attachmentBehavior];
-}
-
-- (void) viewDidAppear:(BOOL)animated
+- (void)viewDidAppear:(BOOL)animated
 {
     [super viewDidAppear:animated];
     
-    [self createGestureRecognizer];
-    [self createSmallSquareView];
-    [self createAnchorView];
-    [self createAnimatorAndBehaviors];
-}
-
-- (void) handlePan:(UIPanGestureRecognizer *)pan
-{
-    CGPoint tapPoint = [pan locationInView:self.view];
-    [self.attachmentBehavior setAnchorPoint:tapPoint];
-    self.anchorView.center = tapPoint;
+    UIView *topView = [self newViewWithCenter:CGPointMake(100.0f, 0.0f) backgroundColor:[UIColor greenColor]];
+    UIView *bottomView = [self newViewWithCenter:CGPointMake(100.0f, 50.0f) backgroundColor:[UIColor redColor]];
+    [self.view addSubview:topView];
+    [self.view addSubview:bottomView];
+    
+    self.animator = [[UIDynamicAnimator alloc] initWithReferenceView:self.view];
+    
+    UIGravityBehavior *gravity = [[UIGravityBehavior alloc] initWithItems:@[topView, bottomView]];
+    [self.animator addBehavior:gravity];
+    
+    UICollisionBehavior *collision = [[UICollisionBehavior alloc] initWithItems:@[topView, bottomView]];
+    collision.translatesReferenceBoundsIntoBoundary = YES;
+    [self.animator addBehavior:collision];
+    
+    UIDynamicItemBehavior *moreElasticItem = [[UIDynamicItemBehavior alloc] initWithItems:@[bottomView]];
+    moreElasticItem.elasticity = 1.0f;
+    UIDynamicItemBehavior *lessElasticItem = [[UIDynamicItemBehavior alloc] initWithItems:@[topView]];
+    lessElasticItem.elasticity = 0.5f;
+    [self.animator addBehavior:moreElasticItem];
+    [self.animator addBehavior:lessElasticItem];
 }
 
 @end
