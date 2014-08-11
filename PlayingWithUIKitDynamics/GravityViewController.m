@@ -8,69 +8,80 @@
 
 #import "GravityViewController.h"
 
-NSString *const kBottomBoundary = @"bottomBoundary";
 
-@interface GravityViewController () <UICollisionBehaviorDelegate>
+@interface GravityViewController ()
 
-@property (nonatomic, strong) NSMutableArray *squareViews;
+@property (nonatomic, strong) UIView *squareView;
 @property (nonatomic, strong) UIDynamicAnimator *animator;
+@property (nonatomic, strong) UIPushBehavior *pushBehavior;
 
 @end
 
 @implementation GravityViewController
 
-// UICollisionBehaviorDelegate method
-- (void) collisionBehavior:(UICollisionBehavior *)behavior
-       beganContactForItem:(id<UIDynamicItem>)item
-    withBoundaryIdentifier:(id<NSCopying>)identifier
-                   atPoint:(CGPoint)p
+- (void) createSmallSquareView
 {
-    NSString *theIdentifier = (NSString *)identifier;
-    if ([theIdentifier isEqualToString:kBottomBoundary]) {
-        
-        [UIView animateWithDuration:1.0f animations:^{
-            UIView *view = (UIView *)item;
-            view.backgroundColor = [UIColor redColor];
-            view.alpha = 0.0f;
-            view.transform = CGAffineTransformMakeScale(2.0f, 2.0f);
-        } completion:^(BOOL finished) {
-            UIView *view = (UIView *)item;
-            [behavior removeItem:item];
-            [view removeFromSuperview];
-        }];
-    }
+    self.squareView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, 80.0f, 80.0f)];
+    
+    self.squareView.backgroundColor = [UIColor greenColor];
+    self.squareView.center = self.view.center;
+    
+    [self.view addSubview:self.squareView];
+}
+
+- (void) createGestureRecognizer
+{
+    UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTap:)];
+    [self.view addGestureRecognizer:tapGestureRecognizer];
+}
+
+- (void) createAnimatorAndBehaviors
+{
+    self.animator = [[UIDynamicAnimator alloc] initWithReferenceView:self.view];
+    UICollisionBehavior *collision = [[UICollisionBehavior alloc] initWithItems:@[self.squareView]];
+    collision.translatesReferenceBoundsIntoBoundary = YES;
+    self.pushBehavior = [[UIPushBehavior alloc] initWithItems:@[self.squareView] mode:UIPushBehaviorModeContinuous];
+    [self.animator addBehavior:collision];
+    [self.animator addBehavior:self.pushBehavior];
 }
 
 - (void)viewDidAppear:(BOOL)animated
 {
     [super viewDidAppear:animated];
-    NSUInteger const NumberOfViews = 2;
     
-    self.squareViews = [[NSMutableArray alloc] initWithCapacity:NumberOfViews];
-    NSArray *colors = @[[UIColor redColor], [UIColor greenColor]];
+    [self createGestureRecognizer];
+    [self createSmallSquareView];
+    [self createAnimatorAndBehaviors];
+}
+
+- (void) handleTap:(UITapGestureRecognizer *)tap
+{
+    /*
+     Get the angle between the center of the square view and the tap point
+     */
+    CGPoint tapPoint = [tap locationInView:self.view];
+    CGPoint squareViewCenterPoint = self.squareView.center;
     
-    CGPoint currentCenterPoint = CGPointMake(50.0f, 50.0f);
-    CGSize eachViewSize = CGSizeMake(50.0f, 50.0f);
-    for (NSUInteger counter = 0; counter < NumberOfViews; counter++) {
-        UIView *aView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, eachViewSize.width, eachViewSize.height)];
-        
-        aView.backgroundColor = colors[counter];
-        aView.center = currentCenterPoint;
-        
-        currentCenterPoint.y += eachViewSize.height + 10.0f;
-        
-        [self.view addSubview:aView];
-        [self.squareViews addObject:aView];
-    }
+    /*
+     calculate the angle between the center point of the square view and
+     the tap point to find out the angle of the push
+     formula for detecting the angle between two points is:
+     arc tangent 2((p1.x - p2.x), (p1.y - p2.y))
+     */
+    CGFloat deltaX = tapPoint.x - squareViewCenterPoint.x;
+    CGFloat deltaY = tapPoint.y - squareViewCenterPoint.y;
+    CGFloat angle = atan2(deltaX, deltaY);
     
-    self.animator = [[UIDynamicAnimator alloc] initWithReferenceView:self.view];
-    UIGravityBehavior *gravity = [[UIGravityBehavior alloc] initWithItems:self.squareViews];
-    [self.animator addBehavior:gravity];
+    [self.pushBehavior setAngle:angle];
     
-    UICollisionBehavior *collision = [[UICollisionBehavior alloc] initWithItems:self.squareViews];
-    [collision addBoundaryWithIdentifier:kBottomBoundary fromPoint:CGPointMake(0.0f, self.view.bounds.size.height - 100.0f) toPoint:CGPointMake(self.view.bounds.size.width, self.view.bounds.size.height - 100.0f)];
-    collision.collisionDelegate = self;
-    [self.animator addBehavior:collision];
+    /*
+     use the distance between the tap point and the center of our square
+     view to calculate the magnitude of the push
+     distance formula is:
+     square root of ((p1.x - p2.x)^2 + (p1.y - p2.y)^2)
+     */
+    CGFloat distanceBetweenPoints = sqrt(pow(tapPoint.x - squareViewCenterPoint.x, 2.0) + pow(tapPoint.y - squareViewCenterPoint.y, 2.0));
+    [self.pushBehavior setMagnitude:distanceBetweenPoints / 200.0f];
 }
 
 @end
