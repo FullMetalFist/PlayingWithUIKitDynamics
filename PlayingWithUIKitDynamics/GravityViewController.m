@@ -12,8 +12,10 @@
 @interface GravityViewController ()
 
 @property (nonatomic, strong) UIView *squareView;
+@property (nonatomic, strong) UIView *squareViewAnchorView;
+@property (nonatomic, strong) UIView *anchorView;
 @property (nonatomic, strong) UIDynamicAnimator *animator;
-@property (nonatomic, strong) UIPushBehavior *pushBehavior;
+@property (nonatomic, strong) UIAttachmentBehavior *attachmentBehavior;
 
 @end
 
@@ -26,62 +28,55 @@
     self.squareView.backgroundColor = [UIColor greenColor];
     self.squareView.center = self.view.center;
     
+    self.squareViewAnchorView = [[UIView alloc] initWithFrame:CGRectMake(60.0f, 0.0f, 20.0f, 20.0f)];
+    self.squareViewAnchorView.backgroundColor = [UIColor blackColor];
+    
+    [self.squareView addSubview:self.squareViewAnchorView];
     [self.view addSubview:self.squareView];
+}
+
+- (void) createAnchorView
+{
+    self.anchorView = [[UIView alloc] initWithFrame:CGRectMake(120.0f, 120.0f, 20.0f, 20.0f)];
+    self.anchorView.backgroundColor = [UIColor redColor];
+    
+    [self.view addSubview:self.anchorView];
 }
 
 - (void) createGestureRecognizer
 {
-    UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTap:)];
-    [self.view addGestureRecognizer:tapGestureRecognizer];
+    UIPanGestureRecognizer *panGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)];
+    [self.view addGestureRecognizer:panGestureRecognizer];
 }
 
 - (void) createAnimatorAndBehaviors
 {
     self.animator = [[UIDynamicAnimator alloc] initWithReferenceView:self.view];
+    // create collision detection
     UICollisionBehavior *collision = [[UICollisionBehavior alloc] initWithItems:@[self.squareView]];
     collision.translatesReferenceBoundsIntoBoundary = YES;
-    self.pushBehavior = [[UIPushBehavior alloc] initWithItems:@[self.squareView] mode:UIPushBehaviorModeContinuous];
+    
+#warning init method in book was not available- initWithItem:point:attachedToAnchor: method missing
+    self.attachmentBehavior = [[UIAttachmentBehavior alloc] initWithItem:self.squareView attachedToAnchor:self.anchorView.center];
     [self.animator addBehavior:collision];
-    [self.animator addBehavior:self.pushBehavior];
+    [self.animator addBehavior:self.attachmentBehavior];
 }
 
-- (void)viewDidAppear:(BOOL)animated
+- (void) viewDidAppear:(BOOL)animated
 {
     [super viewDidAppear:animated];
     
     [self createGestureRecognizer];
     [self createSmallSquareView];
+    [self createAnchorView];
     [self createAnimatorAndBehaviors];
 }
 
-- (void) handleTap:(UITapGestureRecognizer *)tap
+- (void) handlePan:(UIPanGestureRecognizer *)pan
 {
-    /*
-     Get the angle between the center of the square view and the tap point
-     */
-    CGPoint tapPoint = [tap locationInView:self.view];
-    CGPoint squareViewCenterPoint = self.squareView.center;
-    
-    /*
-     calculate the angle between the center point of the square view and
-     the tap point to find out the angle of the push
-     formula for detecting the angle between two points is:
-     arc tangent 2((p1.x - p2.x), (p1.y - p2.y))
-     */
-    CGFloat deltaX = tapPoint.x - squareViewCenterPoint.x;
-    CGFloat deltaY = tapPoint.y - squareViewCenterPoint.y;
-    CGFloat angle = atan2(deltaX, deltaY);
-    
-    [self.pushBehavior setAngle:angle];
-    
-    /*
-     use the distance between the tap point and the center of our square
-     view to calculate the magnitude of the push
-     distance formula is:
-     square root of ((p1.x - p2.x)^2 + (p1.y - p2.y)^2)
-     */
-    CGFloat distanceBetweenPoints = sqrt(pow(tapPoint.x - squareViewCenterPoint.x, 2.0) + pow(tapPoint.y - squareViewCenterPoint.y, 2.0));
-    [self.pushBehavior setMagnitude:distanceBetweenPoints / 200.0f];
+    CGPoint tapPoint = [pan locationInView:self.view];
+    [self.attachmentBehavior setAnchorPoint:tapPoint];
+    self.anchorView.center = tapPoint;
 }
 
 @end
